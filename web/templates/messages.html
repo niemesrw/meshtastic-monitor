@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Messages - Meshtastic Monitor{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Messages</h2>
+        <span class="badge bg-secondary">{{ total }} total</span>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">From Node</label>
+                    <input type="text" class="form-control" name="from" value="{{ from_filter or '' }}" placeholder="e.g., !abc12345">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">To Node</label>
+                    <input type="text" class="form-control" name="to" value="{{ to_filter or '' }}" placeholder="e.g., !xyz67890">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">Filter</button>
+                    <a href="{{ url_for('messages_view') }}" class="btn btn-outline-secondary">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Messages Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 160px;">Time</th>
+                        <th style="width: 140px;">From</th>
+                        <th style="width: 140px;">To</th>
+                        <th style="width: 80px;">Channel</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for msg in messages %}
+                    <tr>
+                        <td>
+                            <small>{{ msg.timestamp|datetime }}</small>
+                        </td>
+                        <td>
+                            {% if msg.from_node %}
+                            <a href="{{ url_for('node_detail', node_id=msg.from_node) }}">
+                                <code>{{ msg.from_node }}</code>
+                            </a>
+                            {% else %}
+                            <span class="text-muted">Unknown</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if msg.to_node %}
+                            <a href="{{ url_for('node_detail', node_id=msg.to_node) }}">
+                                <code>{{ msg.to_node }}</code>
+                            </a>
+                            {% else %}
+                            <span class="badge bg-info">Broadcast</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ msg.channel or 0 }}</span>
+                        </td>
+                        <td>{{ msg.text or '' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">No messages found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if pages > 1 %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page - 1 }}{% if from_filter %}&from={{ from_filter }}{% endif %}{% if to_filter %}&to={{ to_filter }}{% endif %}">Previous</a>
+            </li>
+            {% for p in range(1, pages + 1) %}
+            {% if p <= 3 or p > pages - 2 or (p >= page - 1 and p <= page + 1) %}
+            <li class="page-item {% if p == page %}active{% endif %}">
+                <a class="page-link" href="?page={{ p }}{% if from_filter %}&from={{ from_filter }}{% endif %}{% if to_filter %}&to={{ to_filter }}{% endif %}">{{ p }}</a>
+            </li>
+            {% elif p == 4 or p == pages - 2 %}
+            <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+            {% endfor %}
+            <li class="page-item {% if page == pages %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page + 1 }}{% if from_filter %}&from={{ from_filter }}{% endif %}{% if to_filter %}&to={{ to_filter }}{% endif %}">Next</a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

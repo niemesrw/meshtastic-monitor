@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Nodes - Meshtastic Monitor{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Nodes</h2>
+        <span class="badge bg-secondary">{{ total }} total</span>
+    </div>
+
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Node ID</th>
+                        <th>Name</th>
+                        <th>Hardware</th>
+                        <th>Battery</th>
+                        <th>Last Seen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for node in nodes %}
+                    {% set metrics = node_metrics.get(node.node_id) %}
+                    <tr>
+                        <td>
+                            {% if node.last_seen %}
+                                {% set seconds_ago = (now() - node.last_seen).total_seconds() if now else 999999 %}
+                                {% if seconds_ago < 3600 %}
+                                <span class="node-status online" title="Online"></span>
+                                {% elif seconds_ago < 86400 %}
+                                <span class="node-status stale" title="Stale"></span>
+                                {% else %}
+                                <span class="node-status offline" title="Offline"></span>
+                                {% endif %}
+                            {% else %}
+                                <span class="node-status offline" title="Unknown"></span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('node_detail', node_id=node.node_id) }}">
+                                <code>{{ node.node_id }}</code>
+                            </a>
+                        </td>
+                        <td>
+                            {{ node.long_name or '-' }}
+                            {% if node.short_name %}
+                            <br><small class="text-muted">{{ node.short_name }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ node.hw_model or '-' }}</td>
+                        <td>
+                            {% if metrics and metrics.battery_level is not none %}
+                            <div class="progress" style="height: 20px; min-width: 60px;">
+                                {% set batt = metrics.battery_level %}
+                                {% if batt > 50 %}
+                                    {% set color = 'bg-success' %}
+                                {% elif batt > 20 %}
+                                    {% set color = 'bg-warning' %}
+                                {% else %}
+                                    {% set color = 'bg-danger' %}
+                                {% endif %}
+                                <div class="progress-bar {{ color }}" style="width: {{ batt }}%">
+                                    {{ batt }}%
+                                </div>
+                            </div>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>{{ node.last_seen|relative_time }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">No nodes found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if pages > 1 %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page - 1 }}">Previous</a>
+            </li>
+            {% for p in range(1, pages + 1) %}
+            <li class="page-item {% if p == page %}active{% endif %}">
+                <a class="page-link" href="?page={{ p }}">{{ p }}</a>
+            </li>
+            {% endfor %}
+            <li class="page-item {% if page == pages %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page + 1 }}">Next</a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+    // Make datetime.now() available in template
+    function now() {
+        return new Date();
+    }
+</script>
+{% endblock %}
