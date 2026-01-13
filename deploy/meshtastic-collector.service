@@ -1,0 +1,34 @@
+[Unit]
+Description=Meshtastic Monitor Collector
+Documentation=https://github.com/blanxlait/meshtastic-monitor
+After=network.target
+
+[Service]
+Type=simple
+User=meshtastic
+Group=meshtastic
+WorkingDirectory=/opt/meshtastic-monitor
+
+# Collector configuration via environment
+EnvironmentFile=-/etc/meshtastic-monitor/collector.env
+
+# Start collector - update MESHTASTIC_HOST to your device IP
+ExecStart=/opt/meshtastic-monitor/.venv/bin/mesh-monitor start --host ${MESHTASTIC_HOST:-localhost} --db /var/lib/meshtastic-monitor/mesh.db
+
+# Restart on failure
+Restart=on-failure
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=meshtastic-collector
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/meshtastic-monitor
+
+[Install]
+WantedBy=multi-user.target

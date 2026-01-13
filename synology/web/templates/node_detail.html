@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block title %}{{ node.long_name or node.node_id }} - Meshtastic Monitor{% endblock %}
+
+{% block head %}
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    #node-map {
+        height: 300px;
+        border-radius: 8px;
+    }
+    .info-table th {
+        width: 150px;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('nodes_list') }}">Nodes</a></li>
+            <li class="breadcrumb-item active">{{ node.node_id }}</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">{{ node.long_name or node.node_id }}</h2>
+            {% if node.short_name %}
+            <span class="badge bg-secondary">{{ node.short_name }}</span>
+            {% endif %}
+        </div>
+        <span class="text-muted">Last seen: {{ node.last_seen|relative_time }}</span>
+    </div>
+
+    <div class="row">
+        <!-- Node Info -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-info-circle"></i> Node Information
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm info-table mb-0">
+                        <tr>
+                            <th>Node ID</th>
+                            <td><code>{{ node.node_id }}</code></td>
+                        </tr>
+                        <tr>
+                            <th>Node Number</th>
+                            <td>{{ node.node_num or 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Hardware</th>
+                            <td>{{ node.hw_model or 'Unknown' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Firmware</th>
+                            <td>{{ node.firmware_version or 'Unknown' }}</td>
+                        </tr>
+                        <tr>
+                            <th>MAC Address</th>
+                            <td>{{ node.mac_addr or 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <th>First Seen</th>
+                            <td>{{ node.first_seen|datetime }}</td>
+                        </tr>
+                        <tr>
+                            <th>Last Seen</th>
+                            <td>{{ node.last_seen|datetime }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Latest Metrics -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-speedometer"></i> Latest Metrics
+                </div>
+                <div class="card-body">
+                    {% if metrics %}
+                    {% set m = metrics[0] %}
+                    <div class="row text-center">
+                        <div class="col-6 col-md-3 mb-3">
+                            <div class="h3 mb-0">{{ m.battery_level or '-' }}%</div>
+                            <small class="text-muted">Battery</small>
+                        </div>
+                        <div class="col-6 col-md-3 mb-3">
+                            <div class="h3 mb-0">{{ '%.2f'|format(m.voltage) if m.voltage else '-' }}V</div>
+                            <small class="text-muted">Voltage</small>
+                        </div>
+                        <div class="col-6 col-md-3 mb-3">
+                            <div class="h3 mb-0">{{ '%.1f'|format(m.channel_utilization) if m.channel_utilization else '-' }}%</div>
+                            <small class="text-muted">Ch Util</small>
+                        </div>
+                        <div class="col-6 col-md-3 mb-3">
+                            <div class="h3 mb-0">{{ '%.1f'|format(m.air_util_tx) if m.air_util_tx else '-' }}%</div>
+                            <small class="text-muted">Air TX</small>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No metrics available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Position Map -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-geo-alt"></i> Position
+                </div>
+                <div class="card-body">
+                    {% if positions %}
+                    <div id="node-map" class="mb-3"></div>
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th>Latitude</th>
+                            <td>{{ '%.6f'|format(positions[0].latitude) if positions[0].latitude else 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Longitude</th>
+                            <td>{{ '%.6f'|format(positions[0].longitude) if positions[0].longitude else 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Altitude</th>
+                            <td>{{ positions[0].altitude }}m</td>
+                        </tr>
+                        <tr>
+                            <th>Updated</th>
+                            <td>{{ positions[0].timestamp|relative_time }}</td>
+                        </tr>
+                    </table>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No position data</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Battery Chart -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-battery-half"></i> Battery History
+                </div>
+                <div class="card-body">
+                    {% if metrics %}
+                    <canvas id="batteryChart"></canvas>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No metrics available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Messages -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-chat-dots"></i> Recent Messages
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>To</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for msg in messages %}
+                    <tr>
+                        <td><small>{{ msg.timestamp|relative_time }}</small></td>
+                        <td><small>{{ msg.to_node or 'Broadcast' }}</small></td>
+                        <td>{{ msg.text }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted">No messages from this node</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    {% if positions %}
+    // Initialize map
+    const positions = {{ positions|tojson }};
+    const latestPos = positions[0];
+
+    if (latestPos && latestPos.latitude && latestPos.longitude) {
+        const map = L.map('node-map').setView([latestPos.latitude, latestPos.longitude], 14);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Add marker for latest position
+        L.marker([latestPos.latitude, latestPos.longitude]).addTo(map);
+
+        // Add trail for position history
+        if (positions.length > 1) {
+            const trail = positions
+                .filter(p => p.latitude && p.longitude)
+                .map(p => [p.latitude, p.longitude]);
+            L.polyline(trail, { color: '#0d6efd', weight: 2, opacity: 0.6 }).addTo(map);
+        }
+    }
+    {% endif %}
+
+    {% if metrics %}
+    // Battery chart
+    const metricsData = {{ metrics|tojson }};
+    const ctx = document.getElementById('batteryChart').getContext('2d');
+
+    const labels = metricsData.map(m => {
+        const d = new Date(m.timestamp);
+        return d.toLocaleTimeString();
+    }).reverse();
+
+    const batteryData = metricsData.map(m => m.battery_level).reverse();
+    const voltageData = metricsData.map(m => m.voltage).reverse();
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Battery %',
+                data: batteryData,
+                borderColor: '#198754',
+                backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                fill: true,
+                tension: 0.3,
+                yAxisID: 'y'
+            }, {
+                label: 'Voltage',
+                data: voltageData,
+                borderColor: '#0d6efd',
+                borderDash: [5, 5],
+                fill: false,
+                tension: 0.3,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            scales: {
+                y: {
+                    type: 'linear',
+                    position: 'left',
+                    min: 0,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'Battery %'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    position: 'right',
+                    min: 3.0,
+                    max: 4.5,
+                    title: {
+                        display: true,
+                        text: 'Voltage'
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                }
+            }
+        }
+    });
+    {% endif %}
+</script>
+{% endblock %}

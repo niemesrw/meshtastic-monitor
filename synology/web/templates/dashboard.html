@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Meshtastic Monitor{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4">Dashboard</h2>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card nodes">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Total Nodes</h6>
+                    <h2 class="card-title mb-0">{{ stats.total_nodes }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card active">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Active (1h)</h6>
+                    <h2 class="card-title mb-0">{{ active_count }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card positions">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Positions</h6>
+                    <h2 class="card-title mb-0">{{ stats.total_positions }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card messages">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Messages</h6>
+                    <h2 class="card-title mb-0">{{ stats.total_messages }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Nodes -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-hdd-network"></i> Recent Nodes</span>
+                    <a href="{{ url_for('nodes_list') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Node</th>
+                                <th>Hardware</th>
+                                <th>Last Seen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for node in nodes %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('node_detail', node_id=node.node_id) }}">
+                                        {{ node.long_name or node.node_id }}
+                                    </a>
+                                    {% if node.short_name %}
+                                    <br><small class="text-muted">{{ node.short_name }}</small>
+                                    {% endif %}
+                                </td>
+                                <td><small>{{ node.hw_model or 'Unknown' }}</small></td>
+                                <td><small>{{ node.last_seen|relative_time }}</small></td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">No nodes yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Messages -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-chat-dots"></i> Recent Messages</span>
+                    <a href="{{ url_for('messages_view') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>From</th>
+                                <th>Message</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for msg in messages %}
+                            <tr>
+                                <td><small>{{ msg.from_node or 'Unknown' }}</small></td>
+                                <td>{{ msg.text[:50] }}{% if msg.text and msg.text|length > 50 %}...{% endif %}</td>
+                                <td><small>{{ msg.timestamp|relative_time }}</small></td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">No messages yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

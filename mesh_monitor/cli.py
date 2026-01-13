@@ -10,6 +10,8 @@ import click
 
 from mesh_monitor.db import Database
 from mesh_monitor.collector import MeshCollector
+from mesh_monitor.config import load_config
+from mesh_monitor.sync import SyncService, SyncError
 
 # Configure logging
 logging.basicConfig(
@@ -401,6 +403,113 @@ def export(ctx, output_format, output):
         click.echo(f"Exported to {output}")
     else:
         click.echo(result)
+
+
+@cli.group()
+@click.pass_context
+def sync(ctx):
+    """Manage data synchronization to central server."""
+    pass
+
+
+@sync.command("status")
+@click.pass_context
+def sync_status(ctx):
+    """Show sync status and statistics."""
+    db_path = ctx.obj["db_path"]
+    config = load_config()
+    db = Database(db_path, collector_id=config.collector_id)
+    service = SyncService(db, config)
+
+    status = service.get_status()
+
+    click.echo("\nSync Status:")
+    click.echo("-" * 40)
+    click.echo(f"  Collector ID:    {status['collector_id']}")
+    click.echo(f"  Sync Enabled:    {status['sync_enabled']}")
+    click.echo(f"  Sync Configured: {status['sync_configured']}")
+    click.echo(f"  API URL:         {status['sync_api_url'] or 'Not set'}")
+    click.echo(f"  Sync Interval:   {status['sync_interval']}s")
+
+    click.echo("\nUnsynced Records:")
+    click.echo("-" * 40)
+    for table, count in status["unsynced"].items():
+        click.echo(f"  {table.capitalize():<20} {count}")
+
+    total_unsynced = sum(status["unsynced"].values())
+    click.echo(f"\n  Total Unsynced:   {total_unsynced}")
+
+
+@sync.command("run")
+@click.pass_context
+def sync_run(ctx):
+    """Perform a one-time sync to central server."""
+    db_path = ctx.obj["db_path"]
+    config = load_config()
+
+    if not config.is_sync_configured():
+        click.echo("Sync not configured. Set MESHTASTIC_SYNC_API_URL and MESHTASTIC_SYNC_API_KEY.")
+        sys.exit(1)
+
+    db = Database(db_path, collector_id=config.collector_id)
+    service = SyncService(db, config)
+
+    click.echo(f"Syncing to {config.sync_api_url}...")
+
+    try:
+        result = service.sync_once()
+        if result["records_synced"] == 0:
+            click.echo("No records to sync.")
+        else:
+            click.echo(f"Synced {result['records_synced']} records:")
+            for table, count in result.get("details", {}).items():
+                if count > 0:
+                    click.echo(f"  {table}: {count}")
+    except SyncError as e:
+        click.echo(f"Sync failed: {e}", err=True)
+        sys.exit(1)
+
+
+@sync.command("start")
+@click.option(
+    "--interval",
+    default=None,
+    type=int,
+    help="Override sync interval (seconds).",
+)
+@click.pass_context
+def sync_start(ctx, interval):
+    """Start continuous sync service."""
+    db_path = ctx.obj["db_path"]
+    config = load_config()
+
+    if not config.is_sync_configured():
+        click.echo("Sync not configured. Set MESHTASTIC_SYNC_API_URL and MESHTASTIC_SYNC_API_KEY.")
+        sys.exit(1)
+
+    if interval:
+        config.sync_interval = interval
+
+    config.sync_enabled = True
+
+    db = Database(db_path, collector_id=config.collector_id)
+    service = SyncService(db, config)
+
+    click.echo(f"Starting sync service for collector {config.collector_id}")
+    click.echo(f"Sync API: {config.sync_api_url}")
+    click.echo(f"Interval: {config.sync_interval}s")
+    click.echo("Press Ctrl+C to stop.")
+
+    service.start()
+
+    try:
+        while True:
+            import time
+            time.sleep(1)
+    except KeyboardInterrupt:
+        click.echo("\nStopping sync service...")
+        service.stop()
+        click.echo("Sync service stopped.")
 
 
 # Helper functions

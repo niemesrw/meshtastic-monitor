@@ -11,34 +11,34 @@ Meshtastic Monitor is a Python application for real-time monitoring and historic
 ### Testing
 ```bash
 # Run all tests with coverage
-pytest
+uv run pytest
 
 # Run tests with verbose output
-pytest -v
+uv run pytest -v
 
 # Run specific test file
-pytest tests/test_cli.py
+uv run pytest tests/test_cli.py
 ```
 
 ### Code Quality
 ```bash
 # Format code (100 char line length, Python 3.9+)
-black mesh_monitor/
+uv run black mesh_monitor/
 
 # Lint
-ruff check mesh_monitor/
+uv run ruff check mesh_monitor/
 ```
 
 ### Installation
 ```bash
 # Install dependencies
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 
 # Install in development mode
-pip install -e .
+uv pip install -e .
 
 # Install with dev dependencies
-pip install -e ".[dev]"
+uv pip install -e ".[dev]"
 ```
 
 ### Running the Application

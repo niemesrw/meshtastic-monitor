@@ -21,6 +21,8 @@ class Gateway:
     node_id: Optional[str]
     first_seen: Optional[datetime]
     last_seen: Optional[datetime]
+    collector_id: Optional[str] = None
+    synced_at: Optional[datetime] = None
 
 
 @dataclass
@@ -36,6 +38,8 @@ class Node:
     mac_addr: Optional[str]
     first_seen: Optional[datetime]
     last_seen: Optional[datetime]
+    collector_id: Optional[str] = None
+    synced_at: Optional[datetime] = None
 
 
 @dataclass
@@ -49,6 +53,8 @@ class Position:
     longitude: Optional[float]
     altitude: Optional[int]
     location_source: Optional[str]
+    collector_id: Optional[str] = None
+    synced_at: Optional[datetime] = None
 
 
 @dataclass
@@ -63,6 +69,8 @@ class DeviceMetrics:
     channel_utilization: Optional[float]
     air_util_tx: Optional[float]
     uptime_seconds: Optional[int]
+    collector_id: Optional[str] = None
+    synced_at: Optional[datetime] = None
 
 
 @dataclass
@@ -77,6 +85,8 @@ class Message:
     text: Optional[str]
     port_num: Optional[str]
     gateway_id: Optional[int]
+    collector_id: Optional[str] = None
+    synced_at: Optional[datetime] = None
 
 
 SCHEMA = """
@@ -87,6 +97,8 @@ CREATE TABLE IF NOT EXISTS gateways (
     node_id TEXT,
     first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    collector_id TEXT,
+    synced_at TIMESTAMP,
     UNIQUE(host, port)
 );
 
@@ -99,7 +111,9 @@ CREATE TABLE IF NOT EXISTS nodes (
     firmware_version TEXT,
     mac_addr TEXT,
     first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    collector_id TEXT,
+    synced_at TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS positions (
@@ -110,6 +124,8 @@ CREATE TABLE IF NOT EXISTS positions (
     longitude REAL,
     altitude INTEGER,
     location_source TEXT,
+    collector_id TEXT,
+    synced_at TIMESTAMP,
     FOREIGN KEY (node_id) REFERENCES nodes(node_id)
 );
 
@@ -122,6 +138,8 @@ CREATE TABLE IF NOT EXISTS device_metrics (
     channel_utilization REAL,
     air_util_tx REAL,
     uptime_seconds INTEGER,
+    collector_id TEXT,
+    synced_at TIMESTAMP,
     FOREIGN KEY (node_id) REFERENCES nodes(node_id)
 );
 
@@ -134,36 +152,96 @@ CREATE TABLE IF NOT EXISTS messages (
     text TEXT,
     port_num TEXT,
     gateway_id INTEGER,
+    collector_id TEXT,
+    synced_at TIMESTAMP,
     FOREIGN KEY (from_node) REFERENCES nodes(node_id),
     FOREIGN KEY (gateway_id) REFERENCES gateways(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_positions_node_id ON positions(node_id);
 CREATE INDEX IF NOT EXISTS idx_positions_timestamp ON positions(timestamp);
+CREATE INDEX IF NOT EXISTS idx_positions_synced_at ON positions(synced_at);
 CREATE INDEX IF NOT EXISTS idx_device_metrics_node_id ON device_metrics(node_id);
 CREATE INDEX IF NOT EXISTS idx_device_metrics_timestamp ON device_metrics(timestamp);
+CREATE INDEX IF NOT EXISTS idx_device_metrics_synced_at ON device_metrics(synced_at);
 CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
 CREATE INDEX IF NOT EXISTS idx_messages_from_node ON messages(from_node);
+CREATE INDEX IF NOT EXISTS idx_messages_synced_at ON messages(synced_at);
 CREATE INDEX IF NOT EXISTS idx_nodes_last_seen ON nodes(last_seen);
+CREATE INDEX IF NOT EXISTS idx_nodes_synced_at ON nodes(synced_at);
+CREATE INDEX IF NOT EXISTS idx_gateways_synced_at ON gateways(synced_at);
 """
+
+# Migration to add sync columns to existing databases
+MIGRATIONS = [
+    # Migration 1: Add collector_id and synced_at columns
+    """
+    ALTER TABLE gateways ADD COLUMN collector_id TEXT;
+    ALTER TABLE gateways ADD COLUMN synced_at TIMESTAMP;
+    ALTER TABLE nodes ADD COLUMN collector_id TEXT;
+    ALTER TABLE nodes ADD COLUMN synced_at TIMESTAMP;
+    ALTER TABLE positions ADD COLUMN collector_id TEXT;
+    ALTER TABLE positions ADD COLUMN synced_at TIMESTAMP;
+    ALTER TABLE device_metrics ADD COLUMN collector_id TEXT;
+    ALTER TABLE device_metrics ADD COLUMN synced_at TIMESTAMP;
+    ALTER TABLE messages ADD COLUMN collector_id TEXT;
+    ALTER TABLE messages ADD COLUMN synced_at TIMESTAMP;
+    """,
+]
 
 
 class Database:
     """SQLite database manager for mesh network data."""
 
-    def __init__(self, db_path: str = "mesh.db"):
+    def __init__(self, db_path: str = "mesh.db", collector_id: Optional[str] = None):
         """Initialize database connection.
 
         Args:
             db_path: Path to SQLite database file.
+            collector_id: Unique identifier for this collector (for sync tracking).
         """
         self.db_path = Path(db_path)
+        self.collector_id = collector_id
         self._init_db()
 
     def _init_db(self) -> None:
-        """Initialize database schema."""
+        """Initialize database schema and run migrations."""
         with self._get_connection() as conn:
             conn.executescript(SCHEMA)
+            self._run_migrations(conn)
+
+    def _run_migrations(self, conn) -> None:
+        """Run pending migrations for existing databases."""
+        # Check if we need to run migrations by checking for collector_id column
+        cursor = conn.execute("PRAGMA table_info(nodes)")
+        columns = [row[1] for row in cursor.fetchall()]
+
+        if "collector_id" not in columns:
+            # Run migration to add sync columns
+            for statement in MIGRATIONS[0].strip().split(";"):
+                statement = statement.strip()
+                if statement:
+                    try:
+                        conn.execute(statement)
+                    except sqlite3.OperationalError:
+                        # Column may already exist
+                        pass
+            # Create new indexes
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_positions_synced_at ON positions(synced_at)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_device_metrics_synced_at ON device_metrics(synced_at)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_messages_synced_at ON messages(synced_at)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_nodes_synced_at ON nodes(synced_at)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_gateways_synced_at ON gateways(synced_at)"
+            )
 
     @contextmanager
     def _get_connection(self):
@@ -192,14 +270,15 @@ class Database:
         with self._get_connection() as conn:
             cursor = conn.execute(
                 """
-                INSERT INTO gateways (host, port, node_id, last_seen)
-                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                INSERT INTO gateways (host, port, node_id, last_seen, collector_id)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?)
                 ON CONFLICT(host, port) DO UPDATE SET
                     node_id = COALESCE(excluded.node_id, node_id),
-                    last_seen = CURRENT_TIMESTAMP
+                    last_seen = CURRENT_TIMESTAMP,
+                    synced_at = NULL
                 RETURNING id
                 """,
-                (host, port, node_id),
+                (host, port, node_id, self.collector_id),
             )
             return cursor.fetchone()[0]
 
@@ -246,8 +325,8 @@ class Database:
             conn.execute(
                 """
                 INSERT INTO nodes (node_id, node_num, long_name, short_name,
-                                   hw_model, firmware_version, mac_addr, last_seen)
-                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                                   hw_model, firmware_version, mac_addr, last_seen, collector_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
                 ON CONFLICT(node_id) DO UPDATE SET
                     node_num = COALESCE(excluded.node_num, node_num),
                     long_name = COALESCE(excluded.long_name, long_name),
@@ -255,9 +334,10 @@ class Database:
                     hw_model = COALESCE(excluded.hw_model, hw_model),
                     firmware_version = COALESCE(excluded.firmware_version, firmware_version),
                     mac_addr = COALESCE(excluded.mac_addr, mac_addr),
-                    last_seen = CURRENT_TIMESTAMP
+                    last_seen = CURRENT_TIMESTAMP,
+                    synced_at = NULL
                 """,
-                (node_id, node_num, long_name, short_name, hw_model, firmware_version, mac_addr),
+                (node_id, node_num, long_name, short_name, hw_model, firmware_version, mac_addr, self.collector_id),
             )
 
     def get_node(self, node_id: str) -> Optional[Node]:
@@ -313,11 +393,11 @@ class Database:
             cursor = conn.execute(
                 """
                 INSERT INTO positions (node_id, timestamp, latitude, longitude,
-                                       altitude, location_source)
-                VALUES (?, ?, ?, ?, ?, ?)
+                                       altitude, location_source, collector_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
                 """,
-                (node_id, timestamp, latitude, longitude, altitude, location_source),
+                (node_id, timestamp, latitude, longitude, altitude, location_source, self.collector_id),
             )
             return cursor.fetchone()[0]
 
@@ -388,8 +468,8 @@ class Database:
             cursor = conn.execute(
                 """
                 INSERT INTO device_metrics (node_id, timestamp, battery_level, voltage,
-                                            channel_utilization, air_util_tx, uptime_seconds)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                                            channel_utilization, air_util_tx, uptime_seconds, collector_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
                 """,
                 (
@@ -400,6 +480,7 @@ class Database:
                     channel_utilization,
                     air_util_tx,
                     uptime_seconds,
+                    self.collector_id,
                 ),
             )
             return cursor.fetchone()[0]
@@ -469,11 +550,11 @@ class Database:
             cursor = conn.execute(
                 """
                 INSERT INTO messages (timestamp, from_node, to_node, channel,
-                                      text, port_num, gateway_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                                      text, port_num, gateway_id, collector_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
                 """,
-                (timestamp, from_node, to_node, channel, text, port_num, gateway_id),
+                (timestamp, from_node, to_node, channel, text, port_num, gateway_id, self.collector_id),
             )
             return cursor.fetchone()[0]
 
@@ -519,3 +600,137 @@ class Database:
                 "total_messages": conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0],
                 "total_gateways": conn.execute("SELECT COUNT(*) FROM gateways").fetchone()[0],
             }
+
+    # Sync operations
+
+    def get_unsynced_records(self, limit: int = 1000) -> dict:
+        """Get all unsynced records for sync to central server.
+
+        Args:
+            limit: Maximum records per table to return.
+
+        Returns:
+            Dictionary with unsynced records from each table.
+        """
+        with self._get_connection() as conn:
+            nodes = conn.execute(
+                "SELECT * FROM nodes WHERE synced_at IS NULL LIMIT ?", (limit,)
+            ).fetchall()
+
+            positions = conn.execute(
+                "SELECT * FROM positions WHERE synced_at IS NULL LIMIT ?", (limit,)
+            ).fetchall()
+
+            device_metrics = conn.execute(
+                "SELECT * FROM device_metrics WHERE synced_at IS NULL LIMIT ?", (limit,)
+            ).fetchall()
+
+            messages = conn.execute(
+                "SELECT * FROM messages WHERE synced_at IS NULL LIMIT ?", (limit,)
+            ).fetchall()
+
+            gateways = conn.execute(
+                "SELECT * FROM gateways WHERE synced_at IS NULL LIMIT ?", (limit,)
+            ).fetchall()
+
+            return {
+                "nodes": [dict(row) for row in nodes],
+                "positions": [dict(row) for row in positions],
+                "device_metrics": [dict(row) for row in device_metrics],
+                "messages": [dict(row) for row in messages],
+                "gateways": [dict(row) for row in gateways],
+            }
+
+    def get_unsynced_count(self) -> dict:
+        """Get count of unsynced records per table."""
+        with self._get_connection() as conn:
+            return {
+                "nodes": conn.execute(
+                    "SELECT COUNT(*) FROM nodes WHERE synced_at IS NULL"
+                ).fetchone()[0],
+                "positions": conn.execute(
+                    "SELECT COUNT(*) FROM positions WHERE synced_at IS NULL"
+                ).fetchone()[0],
+                "device_metrics": conn.execute(
+                    "SELECT COUNT(*) FROM device_metrics WHERE synced_at IS NULL"
+                ).fetchone()[0],
+                "messages": conn.execute(
+                    "SELECT COUNT(*) FROM messages WHERE synced_at IS NULL"
+                ).fetchone()[0],
+                "gateways": conn.execute(
+                    "SELECT COUNT(*) FROM gateways WHERE synced_at IS NULL"
+                ).fetchone()[0],
+            }
+
+    def mark_synced(self, records: dict) -> None:
+        """Mark records as synced.
+
+        Args:
+            records: Dictionary with record IDs from each table to mark as synced.
+                     Keys: 'nodes', 'positions', 'device_metrics', 'messages', 'gateways'
+                     Values: Lists of record identifiers (node_id for nodes, id for others)
+        """
+        now = datetime.now()
+        with self._get_connection() as conn:
+            if records.get("nodes"):
+                node_ids = records["nodes"]
+                placeholders = ",".join("?" * len(node_ids))
+                conn.execute(
+                    f"UPDATE nodes SET synced_at = ? WHERE node_id IN ({placeholders})",
+                    [now] + node_ids,
+                )
+
+            if records.get("positions"):
+                position_ids = records["positions"]
+                placeholders = ",".join("?" * len(position_ids))
+                conn.execute(
+                    f"UPDATE positions SET synced_at = ? WHERE id IN ({placeholders})",
+                    [now] + position_ids,
+                )
+
+            if records.get("device_metrics"):
+                metric_ids = records["device_metrics"]
+                placeholders = ",".join("?" * len(metric_ids))
+                conn.execute(
+                    f"UPDATE device_metrics SET synced_at = ? WHERE id IN ({placeholders})",
+                    [now] + metric_ids,
+                )
+
+            if records.get("messages"):
+                message_ids = records["messages"]
+                placeholders = ",".join("?" * len(message_ids))
+                conn.execute(
+                    f"UPDATE messages SET synced_at = ? WHERE id IN ({placeholders})",
+                    [now] + message_ids,
+                )
+
+            if records.get("gateways"):
+                gateway_ids = records["gateways"]
+                placeholders = ",".join("?" * len(gateway_ids))
+                conn.execute(
+                    f"UPDATE gateways SET synced_at = ? WHERE id IN ({placeholders})",
+                    [now] + gateway_ids,
+                )
+
+    def get_sync_stats(self) -> dict:
+        """Get sync statistics."""
+        unsynced = self.get_unsynced_count()
+        stats = self.get_stats()
+
+        # Map unsynced keys to stats keys
+        key_mapping = {
+            "nodes": "total_nodes",
+            "positions": "total_positions",
+            "device_metrics": "total_metrics",
+            "messages": "total_messages",
+            "gateways": "total_gateways",
+        }
+
+        return {
+            "total": stats,
+            "unsynced": unsynced,
+            "synced": {
+                key: stats[key_mapping[key]] - unsynced[key]
+                for key in unsynced.keys()
+            },
+        }

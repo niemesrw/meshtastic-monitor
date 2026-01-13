@@ -1,0 +1,79 @@
+version: '3.8'
+
+# Meshtastic Monitor - Synology NAS Deployment
+#
+# This Docker Compose file deploys the central monitoring stack on Synology.
+#
+# Components:
+#   - PostgreSQL: Central database for aggregated data
+#   - sync-api: API endpoint for receiving data from collectors
+#   - web: Web UI for viewing aggregated data
+#
+# Usage:
+#   1. Copy this directory to your Synology: /volume1/docker/meshtastic-monitor/
+#   2. Create .env file with your settings (see .env.example)
+#   3. Deploy via Container Manager or: docker-compose up -d
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: meshtastic-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: meshtastic
+      POSTGRES_USER: meshtastic
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meshtastic"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  sync-api:
+    build:
+      context: ./sync_api
+      dockerfile: Dockerfile
+    container_name: meshtastic-sync-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://meshtastic:${DB_PASSWORD:-changeme}@db/meshtastic
+      API_KEYS: ${API_KEYS}
+    ports:
+      - "5001:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: meshtastic-web
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://meshtastic:${DB_PASSWORD:-changeme}@db/meshtastic
+    ports:
+      - "8080:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: meshtastic-network

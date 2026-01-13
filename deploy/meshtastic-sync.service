@@ -1,0 +1,35 @@
+[Unit]
+Description=Meshtastic Monitor Sync Service
+Documentation=https://github.com/blanxlait/meshtastic-monitor
+After=network-online.target meshtastic-collector.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=meshtastic
+Group=meshtastic
+WorkingDirectory=/opt/meshtastic-monitor
+
+# Sync configuration via environment
+EnvironmentFile=/etc/meshtastic-monitor/sync.env
+
+# Start sync service
+ExecStart=/opt/meshtastic-monitor/.venv/bin/mesh-monitor sync start --db /var/lib/meshtastic-monitor/mesh.db
+
+# Restart on failure with backoff
+Restart=on-failure
+RestartSec=30
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=meshtastic-sync
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/meshtastic-monitor
+
+[Install]
+WantedBy=multi-user.target

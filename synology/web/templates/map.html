@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Map - Meshtastic Monitor{% endblock %}
+
+{% block head %}
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    #map {
+        height: calc(100vh - 100px);
+        width: 100%;
+        border-radius: 8px;
+    }
+    .node-popup {
+        min-width: 200px;
+    }
+    .node-popup h6 {
+        margin-bottom: 0.5rem;
+        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 0.5rem;
+    }
+    .node-popup .info-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.25rem;
+    }
+    .node-popup .info-label {
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">Map</h2>
+        <span class="badge bg-primary">{{ nodes|length }} nodes with positions</span>
+    </div>
+
+    <div id="map"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // Node data from server
+    const nodes = {{ nodes|tojson }};
+
+    // Initialize map
+    const map = L.map('map');
+
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Custom marker icon
+    const nodeIcon = L.divIcon({
+        className: 'custom-marker',
+        html: '<div style="background-color: #0d6efd; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+        popupAnchor: [0, -8]
+    });
+
+    // Add markers for each node
+    const markers = [];
+    nodes.forEach(node => {
+        if (node.latitude && node.longitude) {
+            const marker = L.marker([node.latitude, node.longitude], { icon: nodeIcon })
+                .addTo(map)
+                .bindPopup(`
+                    <div class="node-popup">
+                        <h6>${node.name || node.node_id}</h6>
+                        <div class="info-row">
+                            <span class="info-label">ID:</span>
+                            <span>${node.node_id}</span>
+                        </div>
+                        ${node.short_name ? `
+                        <div class="info-row">
+                            <span class="info-label">Short:</span>
+                            <span>${node.short_name}</span>
+                        </div>
+                        ` : ''}
+                        <div class="info-row">
+                            <span class="info-label">Lat:</span>
+                            <span>${node.latitude.toFixed(6)}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Lon:</span>
+                            <span>${node.longitude.toFixed(6)}</span>
+                        </div>
+                        ${node.altitude ? `
+                        <div class="info-row">
+                            <span class="info-label">Alt:</span>
+                            <span>${node.altitude}m</span>
+                        </div>
+                        ` : ''}
+                        <div class="mt-2">
+                            <a href="/nodes/${node.node_id}" class="btn btn-sm btn-primary">View Details</a>
+                        </div>
+                    </div>
+                `);
+            markers.push(marker);
+        }
+    });
+
+    // Fit map to markers or show default view
+    if (markers.length > 0) {
+        const group = L.featureGroup(markers);
+        map.fitBounds(group.getBounds().pad(0.1));
+    } else {
+        // Default view (US center)
+        map.setView([39.8283, -98.5795], 4);
+    }
+</script>
+{% endblock %}
