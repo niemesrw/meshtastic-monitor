@@ -13,118 +13,412 @@
     {% block head %}{% endblock %}
 
     <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-500: #6b7280;
+            --gray-700: #374151;
+            --gray-900: #111827;
+            --sidebar-width: 240px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             min-height: 100vh;
+            background: var(--gray-50);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: var(--gray-700);
         }
+
+        /* Sidebar */
         .sidebar {
             position: fixed;
             top: 0;
             bottom: 0;
             left: 0;
             z-index: 100;
-            padding: 48px 0 0;
-            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, var(--gray-900) 0%, #1f2937 100%);
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
         }
         .sidebar-sticky {
             position: relative;
             top: 0;
-            height: calc(100vh - 48px);
-            padding-top: .5rem;
+            height: 100vh;
+            padding-top: 1.5rem;
             overflow-x: hidden;
             overflow-y: auto;
         }
+        .sidebar .brand {
+            padding: 0 1.25rem 1.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 1rem;
+        }
+        .sidebar .brand h5 {
+            color: white;
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .sidebar .brand h5 i {
+            color: var(--primary);
+            font-size: 1.3rem;
+        }
         .sidebar .nav-link {
             font-weight: 500;
-            color: #333;
-            padding: 0.75rem 1rem;
+            color: var(--gray-300);
+            padding: 0.75rem 1.25rem;
+            margin: 0.25rem 0.75rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
         .sidebar .nav-link:hover {
-            color: #0d6efd;
-            background-color: #f8f9fa;
+            color: white;
+            background: rgba(255,255,255,0.1);
         }
         .sidebar .nav-link.active {
-            color: #0d6efd;
-            background-color: #e7f1ff;
+            color: white;
+            background: var(--primary);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
         }
         .sidebar .nav-link i {
-            margin-right: 0.5rem;
+            font-size: 1.1rem;
+            width: 20px;
+            text-align: center;
         }
+        .sidebar-footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem 1.25rem;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar-footer small {
+            color: var(--gray-500);
+            font-size: 0.75rem;
+        }
+
+        /* Main content */
         main {
-            margin-left: 200px;
-            padding: 20px;
+            margin-left: var(--sidebar-width);
+            padding: 2rem;
+            min-height: 100vh;
         }
-        .navbar {
-            margin-left: 200px;
+
+        /* Page headers */
+        h2 {
+            color: var(--gray-900);
+            font-weight: 700;
+            font-size: 1.75rem;
         }
+
+        /* Cards */
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+            overflow: hidden;
+        }
+        .card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1), 0 8px 24px rgba(0,0,0,0.08);
+        }
+        .card-header {
+            background: white;
+            border-bottom: 1px solid var(--gray-100);
+            font-weight: 600;
+            color: var(--gray-700);
+            padding: 1rem 1.25rem;
+        }
+        .card-body {
+            padding: 1.25rem;
+        }
+
+        /* Stat cards */
         .stat-card {
-            border-left: 4px solid;
+            border-left: none;
+            position: relative;
+            overflow: hidden;
         }
-        .stat-card.nodes { border-left-color: #0d6efd; }
-        .stat-card.positions { border-left-color: #198754; }
-        .stat-card.messages { border-left-color: #ffc107; }
-        .stat-card.active { border-left-color: #20c997; }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+        }
+        .stat-card.nodes::before { background: var(--primary); }
+        .stat-card.positions::before { background: var(--success); }
+        .stat-card.messages::before { background: var(--warning); }
+        .stat-card.active::before { background: #06b6d4; }
+        .stat-card .card-body {
+            padding: 1.5rem;
+        }
+        .stat-card h6 {
+            color: var(--gray-500);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+        .stat-card h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0.5rem 0 0;
+        }
+        .stat-card.nodes h2 { color: var(--primary); }
+        .stat-card.positions h2 { color: var(--success); }
+        .stat-card.messages h2 { color: var(--warning); }
+        .stat-card.active h2 { color: #06b6d4; }
+
+        /* Tables */
+        .table {
+            margin-bottom: 0;
+        }
+        .table thead th {
+            background: var(--gray-50);
+            border-bottom: 2px solid var(--gray-200);
+            color: var(--gray-500);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            padding: 0.875rem 1rem;
+        }
+        .table tbody td {
+            padding: 0.875rem 1rem;
+            border-bottom: 1px solid var(--gray-100);
+            vertical-align: middle;
+        }
+        .table tbody tr:hover {
+            background: var(--gray-50);
+        }
+        .table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Node status indicators */
         .node-status {
             display: inline-block;
             width: 10px;
             height: 10px;
             border-radius: 50%;
             margin-right: 5px;
+            box-shadow: 0 0 0 3px rgba(0,0,0,0.05);
         }
-        .node-status.online { background-color: #198754; }
-        .node-status.offline { background-color: #dc3545; }
-        .node-status.stale { background-color: #ffc107; }
+        .node-status.online {
+            background-color: var(--success);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+        }
+        .node-status.offline {
+            background-color: var(--danger);
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+        }
+        .node-status.stale {
+            background-color: var(--warning);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+        }
+
+        /* Badges */
+        .badge {
+            font-weight: 500;
+            padding: 0.375rem 0.625rem;
+            border-radius: 6px;
+        }
+        .badge.bg-secondary {
+            background: var(--gray-100) !important;
+            color: var(--gray-700);
+        }
+        .badge.bg-info {
+            background: #dbeafe !important;
+            color: #1e40af;
+        }
+        .badge.bg-primary {
+            background: var(--primary) !important;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            border-radius: 8px;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            transition: all 0.2s ease;
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            border-color: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+        .btn-outline-primary {
+            color: var(--primary);
+            border-color: var(--primary);
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .btn-outline-primary:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        .btn-outline-secondary {
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        /* Progress bars */
+        .progress {
+            border-radius: 6px;
+            background: var(--gray-100);
+            overflow: hidden;
+        }
+        .progress-bar {
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        /* Links */
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        a:hover {
+            color: var(--primary-dark);
+        }
+
+        /* Code */
+        code {
+            background: var(--gray-100);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: var(--gray-700);
+        }
+
+        /* Forms */
+        .form-control {
+            border-radius: 8px;
+            border: 1px solid var(--gray-200);
+            padding: 0.625rem 0.875rem;
+        }
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+        .form-label {
+            font-weight: 500;
+            color: var(--gray-700);
+            font-size: 0.875rem;
+        }
+
+        /* Pagination */
+        .pagination .page-link {
+            border-radius: 8px;
+            margin: 0 2px;
+            border: none;
+            color: var(--gray-700);
+        }
+        .pagination .page-item.active .page-link {
+            background: var(--primary);
+        }
+        .pagination .page-link:hover {
+            background: var(--gray-100);
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            background: none;
+            padding: 0;
+            margin-bottom: 1rem;
+        }
+        .breadcrumb-item a {
+            color: var(--gray-500);
+        }
+        .breadcrumb-item.active {
+            color: var(--gray-700);
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 position: relative;
-                padding-top: 0;
+                width: 100%;
                 height: auto;
             }
             .sidebar-sticky {
                 height: auto;
+                padding: 1rem 0;
             }
-            main, .navbar {
+            .sidebar-footer {
+                position: relative;
+            }
+            main {
                 margin-left: 0;
+                padding: 1rem;
             }
         }
     </style>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     {% block style %}{% endblock %}
 </head>
 <body>
     <!-- Sidebar -->
-    <nav class="sidebar bg-light d-none d-md-block" style="width: 200px;">
-        <div class="sidebar-sticky pt-3">
-            <div class="px-3 mb-3">
-                <h5 class="text-muted">
+    <nav class="sidebar d-none d-md-block">
+        <div class="sidebar-sticky">
+            <div class="brand">
+                <h5>
                     <i class="bi bi-broadcast"></i> Mesh Monitor
                 </h5>
             </div>
             <ul class="nav flex-column">
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
-                        <i class="bi bi-speedometer2"></i> Dashboard
+                        <i class="bi bi-grid-1x2-fill"></i> Dashboard
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'map_view' %}active{% endif %}" href="{{ url_for('map_view') }}">
-                        <i class="bi bi-geo-alt"></i> Map
+                        <i class="bi bi-geo-alt-fill"></i> Map
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'nodes_list' or request.endpoint == 'node_detail' %}active{% endif %}" href="{{ url_for('nodes_list') }}">
-                        <i class="bi bi-hdd-network"></i> Nodes
+                        <i class="bi bi-hdd-network-fill"></i> Nodes
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'messages_view' %}active{% endif %}" href="{{ url_for('messages_view') }}">
-                        <i class="bi bi-chat-dots"></i> Messages
+                        <i class="bi bi-chat-dots-fill"></i> Messages
                     </a>
                 </li>
             </ul>
-            <hr>
-            <div class="px-3">
-                <small class="text-muted">
-                    <i class="bi bi-info-circle"></i> Meshtastic Monitor v0.1.0
+            <div class="sidebar-footer">
+                <small>
+                    <i class="bi bi-info-circle"></i> v0.1.0
                 </small>
             </div>
         </div>

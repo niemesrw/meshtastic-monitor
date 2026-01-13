@@ -7,25 +7,41 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
     #map {
-        height: calc(100vh - 100px);
+        height: calc(100vh - 140px);
         width: 100%;
-        border-radius: 8px;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
     }
     .node-popup {
-        min-width: 200px;
+        min-width: 220px;
+        font-family: 'Inter', sans-serif;
     }
     .node-popup h6 {
-        margin-bottom: 0.5rem;
-        border-bottom: 1px solid #dee2e6;
-        padding-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
+        border-bottom: 1px solid var(--gray-200);
+        padding-bottom: 0.75rem;
+        font-weight: 600;
+        color: var(--gray-900);
     }
     .node-popup .info-row {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 0.25rem;
+        margin-bottom: 0.375rem;
+        font-size: 0.875rem;
     }
     .node-popup .info-label {
-        color: #6c757d;
+        color: var(--gray-500);
+    }
+    .node-popup .info-value {
+        color: var(--gray-700);
+        font-weight: 500;
+    }
+    .leaflet-popup-content-wrapper {
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .leaflet-popup-tip {
+        box-shadow: none;
     }
 </style>
 {% endblock %}
@@ -59,10 +75,10 @@
     // Custom marker icon
     const nodeIcon = L.divIcon({
         className: 'custom-marker',
-        html: '<div style="background-color: #0d6efd; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
-        iconSize: [16, 16],
-        iconAnchor: [8, 8],
-        popupAnchor: [0, -8]
+        html: '<div style="background-color: #6366f1; width: 14px; height: 14px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.5);"></div>',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+        popupAnchor: [0, -10]
     });
 
     // Add markers for each node
@@ -75,31 +91,31 @@
                     <div class="node-popup">
                         <h6>${node.name || node.node_id}</h6>
                         <div class="info-row">
-                            <span class="info-label">ID:</span>
-                            <span>${node.node_id}</span>
+                            <span class="info-label">ID</span>
+                            <span class="info-value">${node.node_id}</span>
                         </div>
                         ${node.short_name ? `
                         <div class="info-row">
-                            <span class="info-label">Short:</span>
-                            <span>${node.short_name}</span>
+                            <span class="info-label">Short</span>
+                            <span class="info-value">${node.short_name}</span>
                         </div>
                         ` : ''}
                         <div class="info-row">
-                            <span class="info-label">Lat:</span>
-                            <span>${node.latitude.toFixed(6)}</span>
+                            <span class="info-label">Lat</span>
+                            <span class="info-value">${node.latitude.toFixed(6)}</span>
                         </div>
                         <div class="info-row">
-                            <span class="info-label">Lon:</span>
-                            <span>${node.longitude.toFixed(6)}</span>
+                            <span class="info-label">Lon</span>
+                            <span class="info-value">${node.longitude.toFixed(6)}</span>
                         </div>
                         ${node.altitude ? `
                         <div class="info-row">
-                            <span class="info-label">Alt:</span>
-                            <span>${node.altitude}m</span>
+                            <span class="info-label">Alt</span>
+                            <span class="info-value">${node.altitude}m</span>
                         </div>
                         ` : ''}
-                        <div class="mt-2">
-                            <a href="/nodes/${node.node_id}" class="btn btn-sm btn-primary">View Details</a>
+                        <div class="mt-3">
+                            <a href="/nodes/${node.node_id}" class="btn btn-sm btn-primary w-100">View Details</a>
                         </div>
                     </div>
                 `);

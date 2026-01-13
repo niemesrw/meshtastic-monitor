@@ -27,14 +27,14 @@
                     {% set metrics = node_metrics.get(node.node_id) %}
                     <tr>
                         <td>
-                            {% if node.last_seen %}
-                                {% set seconds_ago = (now() - node.last_seen).total_seconds() if now else 999999 %}
+                            {% if node.last_seen and now %}
+                                {% set seconds_ago = (now - node.last_seen).total_seconds() %}
                                 {% if seconds_ago < 3600 %}
-                                <span class="node-status online" title="Online"></span>
+                                <span class="node-status online" title="Online ({{ node.last_seen|relative_time }})"></span>
                                 {% elif seconds_ago < 86400 %}
-                                <span class="node-status stale" title="Stale"></span>
+                                <span class="node-status stale" title="Stale ({{ node.last_seen|relative_time }})"></span>
                                 {% else %}
-                                <span class="node-status offline" title="Offline"></span>
+                                <span class="node-status offline" title="Offline ({{ node.last_seen|relative_time }})"></span>
                                 {% endif %}
                             {% else %}
                                 <span class="node-status offline" title="Unknown"></span>
@@ -104,11 +104,3 @@
 </div>
 {% endblock %}
 
-{% block script %}
-<script>
-    // Make datetime.now() available in template
-    function now() {
-        return new Date();
-    }
-</script>
-{% endblock %}

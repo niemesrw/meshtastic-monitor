@@ -106,9 +106,23 @@ mesh-monitor web --db mesh.db --port 8080
 
 **Dashboard** - Network overview with stats and recent activity
 
-**Map View** - Interactive map showing all node positions with Leaflet.js
+![Dashboard](docs/screenshots/dashboard.png)
+
+**Map View** - Interactive map showing all node positions
+
+![Map](docs/screenshots/map.png)
+
+**Nodes List** - All discovered nodes with status and battery levels
+
+![Nodes](docs/screenshots/nodes.png)
 
 **Node Detail** - Per-node view with position history and metrics charts
+
+![Node Detail](docs/screenshots/node-detail.png)
+
+**Messages** - Searchable message log with filters
+
+![Messages](docs/screenshots/messages.png)
 
 ### Web UI Views
 

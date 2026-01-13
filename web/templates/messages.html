@@ -50,8 +50,9 @@
                         </td>
                         <td>
                             {% if msg.from_node %}
+                            {% set from_node_obj = nodes.get(msg.from_node) %}
                             <a href="{{ url_for('node_detail', node_id=msg.from_node) }}">
-                                <code>{{ msg.from_node }}</code>
+                                {{ from_node_obj.long_name or from_node_obj.short_name or msg.from_node if from_node_obj else msg.from_node }}
                             </a>
                             {% else %}
                             <span class="text-muted">Unknown</span>
@@ -59,8 +60,9 @@
                         </td>
                         <td>
                             {% if msg.to_node %}
+                            {% set to_node_obj = nodes.get(msg.to_node) %}
                             <a href="{{ url_for('node_detail', node_id=msg.to_node) }}">
-                                <code>{{ msg.to_node }}</code>
+                                {{ to_node_obj.long_name or to_node_obj.short_name or msg.to_node if to_node_obj else msg.to_node }}
                             </a>
                             {% else %}
                             <span class="badge bg-info">Broadcast</span>

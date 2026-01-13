@@ -15,6 +15,22 @@
     .info-table th {
         width: 150px;
         font-weight: 500;
+        color: var(--gray-500);
+        font-size: 0.875rem;
+    }
+    .info-table td {
+        color: var(--gray-700);
+    }
+    .metric-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--gray-900);
+    }
+    .metric-label {
+        font-size: 0.75rem;
+        color: var(--gray-500);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 </style>
 {% endblock %}
@@ -91,20 +107,20 @@
                     {% set m = metrics[0] %}
                     <div class="row text-center">
                         <div class="col-6 col-md-3 mb-3">
-                            <div class="h3 mb-0">{{ m.battery_level or '-' }}%</div>
-                            <small class="text-muted">Battery</small>
+                            <div class="metric-value">{{ m.battery_level or '-' }}<span style="font-size: 1rem;">%</span></div>
+                            <div class="metric-label">Battery</div>
                         </div>
                         <div class="col-6 col-md-3 mb-3">
-                            <div class="h3 mb-0">{{ '%.2f'|format(m.voltage) if m.voltage else '-' }}V</div>
-                            <small class="text-muted">Voltage</small>
+                            <div class="metric-value">{{ '%.2f'|format(m.voltage) if m.voltage else '-' }}<span style="font-size: 1rem;">V</span></div>
+                            <div class="metric-label">Voltage</div>
                         </div>
                         <div class="col-6 col-md-3 mb-3">
-                            <div class="h3 mb-0">{{ '%.1f'|format(m.channel_utilization) if m.channel_utilization else '-' }}%</div>
-                            <small class="text-muted">Ch Util</small>
+                            <div class="metric-value">{{ '%.1f'|format(m.channel_utilization) if m.channel_utilization else '-' }}<span style="font-size: 1rem;">%</span></div>
+                            <div class="metric-label">Channel Util</div>
                         </div>
                         <div class="col-6 col-md-3 mb-3">
-                            <div class="h3 mb-0">{{ '%.1f'|format(m.air_util_tx) if m.air_util_tx else '-' }}%</div>
-                            <small class="text-muted">Air TX</small>
+                            <div class="metric-value">{{ '%.1f'|format(m.air_util_tx) if m.air_util_tx else '-' }}<span style="font-size: 1rem;">%</span></div>
+                            <div class="metric-label">Air TX</div>
                         </div>
                     </div>
                     {% else %}
@@ -224,7 +240,7 @@
             const trail = positions
                 .filter(p => p.latitude && p.longitude)
                 .map(p => [p.latitude, p.longitude]);
-            L.polyline(trail, { color: '#0d6efd', weight: 2, opacity: 0.6 }).addTo(map);
+            L.polyline(trail, { color: '#6366f1', weight: 3, opacity: 0.6 }).addTo(map);
         }
     }
     {% endif %}
@@ -249,18 +265,24 @@
             datasets: [{
                 label: 'Battery %',
                 data: batteryData,
-                borderColor: '#198754',
-                backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
                 fill: true,
-                tension: 0.3,
+                tension: 0.4,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                borderWidth: 2,
                 yAxisID: 'y'
             }, {
                 label: 'Voltage',
                 data: voltageData,
-                borderColor: '#0d6efd',
+                borderColor: '#6366f1',
                 borderDash: [5, 5],
                 fill: false,
-                tension: 0.3,
+                tension: 0.4,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                borderWidth: 2,
                 yAxisID: 'y1'
             }]
         },

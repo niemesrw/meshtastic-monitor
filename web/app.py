@@ -78,9 +78,13 @@ def create_app(db_path: str = "mesh.db") -> Flask:
         nodes = db.get_all_nodes(limit=10)
         messages = db.get_messages(limit=10)
 
+        # Build node name lookup for messages
+        all_nodes = db.get_all_nodes(limit=1000)
+        nodes_dict = {n.node_id: n for n in all_nodes}
+
         # Calculate active nodes (heard in last hour)
         active_count = 0
-        for node in db.get_all_nodes(limit=1000):
+        for node in all_nodes:
             if node.last_seen:
                 diff = (datetime.now() - node.last_seen).total_seconds()
                 if diff < 3600:
@@ -90,6 +94,7 @@ def create_app(db_path: str = "mesh.db") -> Flask:
             "dashboard.html",
             stats=stats,
             nodes=nodes,
+            nodes_dict=nodes_dict,
             messages=messages,
             active_count=active_count,
         )
@@ -143,6 +148,7 @@ def create_app(db_path: str = "mesh.db") -> Flask:
             page=page,
             total=total,
             pages=(total + limit - 1) // limit,
+            now=datetime.now(),
         )
 
     @app.route("/nodes/<node_id>")
@@ -183,9 +189,13 @@ def create_app(db_path: str = "mesh.db") -> Flask:
         )
         total = db.get_message_count()
 
+        # Build node name lookup
+        nodes_dict = {n.node_id: n for n in db.get_all_nodes(limit=1000)}
+
         return render_template(
             "messages.html",
             messages=messages,
+            nodes=nodes_dict,
             page=page,
             total=total,
             pages=(total + limit - 1) // limit,

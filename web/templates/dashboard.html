@@ -102,8 +102,17 @@
                         </thead>
                         <tbody>
                             {% for msg in messages %}
+                            {% set from_node_obj = nodes_dict.get(msg.from_node) if msg.from_node else None %}
                             <tr>
-                                <td><small>{{ msg.from_node or 'Unknown' }}</small></td>
+                                <td>
+                                    {% if msg.from_node %}
+                                    <a href="{{ url_for('node_detail', node_id=msg.from_node) }}">
+                                        <small>{{ from_node_obj.long_name or from_node_obj.short_name or msg.from_node if from_node_obj else msg.from_node }}</small>
+                                    </a>
+                                    {% else %}
+                                    <small class="text-muted">Unknown</small>
+                                    {% endif %}
+                                </td>
                                 <td>{{ msg.text[:50] }}{% if msg.text and msg.text|length > 50 %}...{% endif %}</td>
                                 <td><small>{{ msg.timestamp|relative_time }}</small></td>
                             </tr>
