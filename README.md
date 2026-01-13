@@ -202,6 +202,49 @@ See [docs/architecture.md](docs/architecture.md) for detailed architecture docum
                    └──────────────┘
 ```
 
+## Docker Deployment
+
+### Quick Start with Docker
+
+```bash
+docker run -d \
+  --name mesh-monitor \
+  -p 8080:8080 \
+  -v mesh-data:/data \
+  -e MESHTASTIC_HOST=192.168.1.100 \
+  ghcr.io/niemesrw/meshtastic-monitor:latest
+```
+
+### Raspberry Pi Deployment with Auto-Updates
+
+Deploy to Raspberry Pi with automatic updates via Watchtower:
+
+```bash
+# On your Pi
+mkdir ~/meshtastic && cd ~/meshtastic
+
+# Download compose file and env template
+curl -O https://raw.githubusercontent.com/niemesrw/meshtastic-monitor/main/deploy/docker-compose.pi.yml
+curl -O https://raw.githubusercontent.com/niemesrw/meshtastic-monitor/main/deploy/.env.pi.example
+mv .env.pi.example .env
+
+# Edit .env with your Meshtastic device IP
+nano .env
+
+# Start the stack
+docker compose -f docker-compose.pi.yml up -d
+```
+
+Watchtower will automatically pull new images when updates are pushed to GitHub.
+
+### Available Tags
+
+| Tag | Description |
+|-----|-------------|
+| `latest` | Latest build from main branch |
+| `v1.0.0` | Specific version |
+| `sha-abc1234` | Specific commit |
+
 ## Configuration
 
 The tool uses sensible defaults but can be configured via command-line options:

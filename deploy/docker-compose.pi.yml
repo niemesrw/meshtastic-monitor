@@ -1,0 +1,46 @@
+# Docker Compose for Raspberry Pi Deployment
+#
+# Usage:
+#   1. Copy this file and .env.example to your Pi
+#   2. Rename .env.example to .env and configure
+#   3. Run: docker compose -f docker-compose.pi.yml up -d
+#
+# Watchtower will automatically pull new images when they're published
+
+services:
+  mesh-monitor:
+    image: ghcr.io/niemesrw/meshtastic-monitor:latest
+    container_name: mesh-monitor
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - mesh-data:/data
+    environment:
+      - MESHTASTIC_HOST=${MESHTASTIC_HOST}
+      - MESHTASTIC_PORT=${MESHTASTIC_PORT:-4403}
+      - MESHTASTIC_DB_PATH=/data/mesh.db
+      # Sync settings (optional)
+      - MESHTASTIC_SYNC_ENABLED=${MESHTASTIC_SYNC_ENABLED:-false}
+      - MESHTASTIC_SYNC_API_URL=${MESHTASTIC_SYNC_API_URL:-}
+      - MESHTASTIC_SYNC_API_KEY=${MESHTASTIC_SYNC_API_KEY:-}
+      - MESHTASTIC_COLLECTOR_ID=${MESHTASTIC_COLLECTOR_ID:-}
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=${WATCHTOWER_POLL_INTERVAL:-300}
+      - WATCHTOWER_LABEL_ENABLE=true
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+volumes:
+  mesh-data:
+    driver: local
