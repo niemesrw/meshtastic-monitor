@@ -436,6 +436,179 @@ mesh-monitor web --port 8080
 mesh-monitor web --db mesh.db --port 8080
 ```
 
+## Deployment Options
+
+Meshtastic Monitor supports flexible deployment configurations from single-node setups to distributed multi-collector architectures.
+
+### Option 1: Standalone (Single Device)
+
+The simplest setup - run everything on one machine connected to a Meshtastic node.
+
+```
+┌─────────────────────────────────────────┐
+│            Your Computer/Pi             │
+│  ┌─────────────┐    ┌────────────────┐  │
+│  │  Collector  │───▶│   SQLite DB    │  │
+│  │  + Web UI   │    │   (mesh.db)    │  │
+│  └──────┬──────┘    └────────────────┘  │
+└─────────┼───────────────────────────────┘
+          │ TCP
+          ▼
+   ┌──────────────┐
+   │  Meshtastic  │
+   │    Node      │
+   └──────────────┘
+```
+
+```bash
+# Native
+mesh-monitor start --host 192.168.1.100 --web
+
+# Docker
+docker run -d -p 8080:8080 -e MESHTASTIC_HOST=192.168.1.100 \
+  ghcr.io/niemesrw/meshtastic-monitor:latest
+```
+
+### Option 2: Distributed Collectors with Central Server
+
+Deploy multiple Raspberry Pi collectors at different locations, all syncing to a central server for aggregated viewing.
+
+```
+                        ┌─────────────────────────────────┐
+                        │      Central Server (Synology)  │
+                        │  ┌───────────┐  ┌────────────┐  │
+                        │  │  Sync API │  │ PostgreSQL │  │
+                        │  └─────┬─────┘  └──────▲─────┘  │
+                        │        │               │        │
+                        │  ┌─────▼───────────────┴─────┐  │
+                        │  │         Web UI            │  │
+                        │  │   (aggregated view)       │  │
+                        │  └───────────────────────────┘  │
+                        └─────────────────────────────────┘
+                                       ▲
+                                       │ HTTPS
+          ┌────────────────────────────┼────────────────────────────┐
+          │                            │                            │
+          ▼                            ▼                            ▼
+┌──────────────────┐        ┌──────────────────┐        ┌──────────────────┐
+│   Pi Collector   │        │   Pi Collector   │        │   Pi Collector   │
+│   (Location A)   │        │   (Location B)   │        │   (Location C)   │
+│  ┌────────────┐  │        │  ┌────────────┐  │        │  ┌────────────┐  │
+│  │ Collector  │  │        │  │ Collector  │  │        │  │ Collector  │  │
+│  │ + Sync     │  │        │  │ + Sync     │  │        │  │ + Sync     │  │
+│  └─────┬──────┘  │        │  └─────┬──────┘  │        │  └─────┬──────┘  │
+└────────┼─────────┘        └────────┼─────────┘        └────────┼─────────┘
+         │                           │                           │
+         ▼                           ▼                           ▼
+  ┌──────────────┐           ┌──────────────┐           ┌──────────────┐
+  │  Meshtastic  │           │  Meshtastic  │           │  Meshtastic  │
+  │    Node      │           │    Node      │           │    Node      │
+  └──────────────┘           └──────────────┘           └──────────────┘
+```
+
+Each collector:
+- Stores data locally in SQLite
+- Syncs to central server periodically
+- Continues collecting even if central server is offline
+- Auto-updates via Watchtower when new images are pushed
+
+### Option 3: Docker with Auto-Updates (Recommended for Pi)
+
+Use Docker Compose with Watchtower for automatic updates when new versions are released.
+
+```yaml
+# docker-compose.yml
+services:
+  mesh-monitor:
+    image: ghcr.io/niemesrw/meshtastic-monitor:latest
+    environment:
+      - MESHTASTIC_HOST=192.168.1.100
+    volumes:
+      - mesh-data:/data
+    ports:
+      - "8080:8080"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_POLL_INTERVAL=300
+      - WATCHTOWER_LABEL_ENABLE=true
+```
+
+## Self-Hosting Guide
+
+Anyone can run their own Meshtastic Monitor instance. The project is fully open source and designed for easy self-hosting.
+
+### Requirements
+
+- **Hardware**: Any Linux system (x86_64 or ARM64), including Raspberry Pi 3/4/5
+- **Software**: Docker (recommended) or Python 3.9+
+- **Network**: TCP access to at least one Meshtastic node (WiFi-enabled)
+
+### Quick Start (Docker)
+
+```bash
+# Single command to start monitoring
+docker run -d \
+  --name mesh-monitor \
+  --restart unless-stopped \
+  -p 8080:8080 \
+  -v mesh-data:/data \
+  -e MESHTASTIC_HOST=<your-meshtastic-ip> \
+  ghcr.io/niemesrw/meshtastic-monitor:latest
+```
+
+Access the web UI at `http://localhost:8080`
+
+### Quick Start (Native Python)
+
+```bash
+# Clone and install
+git clone https://github.com/niemesrw/meshtastic-monitor.git
+cd meshtastic-monitor
+pip install -e .
+
+# Start monitoring
+mesh-monitor start --host <your-meshtastic-ip> --web
+```
+
+### Raspberry Pi Deployment
+
+See [deploy/docker-compose.pi.yml](../deploy/docker-compose.pi.yml) for a production-ready Pi configuration with:
+- Automatic container updates via Watchtower
+- Persistent data storage
+- Optional sync to central server
+
+### Building Your Own Images
+
+Fork the repo and images will automatically build via GitHub Actions:
+
+1. Fork `github.com/niemesrw/meshtastic-monitor`
+2. Push changes to your `main` branch
+3. Images build automatically and push to `ghcr.io/<your-username>/meshtastic-monitor`
+
+## Container Images
+
+Multi-architecture images are automatically built and published to GitHub Container Registry.
+
+| Architecture | Platforms | Use Case |
+|--------------|-----------|----------|
+| `linux/amd64` | x86_64 servers, Intel/AMD | Servers, NAS, VMs |
+| `linux/arm64` | Raspberry Pi 3/4/5, Apple Silicon | Edge collectors |
+
+### Image Tags
+
+| Tag | Description |
+|-----|-------------|
+| `latest` | Most recent build from main branch |
+| `v1.0.0` | Semantic version releases |
+| `main` | Latest commit on main branch |
+| `sha-abc1234` | Specific commit SHA |
+
 ## Future Considerations
 
 Potential enhancements (not in initial scope):
@@ -445,5 +618,4 @@ Potential enhancements (not in initial scope):
 - Data retention policies / automatic cleanup
 - Real-time WebSocket updates (Socket.IO)
 - Export to GPX/KML for position data
-- Dark mode theme
 - Mobile-responsive PWA

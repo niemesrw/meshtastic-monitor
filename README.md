@@ -1,6 +1,11 @@
 # Meshtastic Monitor
 
-A Python application for monitoring Meshtastic mesh networks. Connects to nodes via TCP, collects network data (nodes, positions, messages, telemetry), stores it in SQLite, and provides both CLI and Web UI for data access and visualization.
+[![Build](https://github.com/niemesrw/meshtastic-monitor/actions/workflows/docker-build.yml/badge.svg)](https://github.com/niemesrw/meshtastic-monitor/actions/workflows/docker-build.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+An open-source application for monitoring Meshtastic mesh networks. Connects to nodes via TCP, collects network data (nodes, positions, messages, telemetry), stores it locally, and provides both CLI and Web UI for visualization.
+
+**Self-hostable** - Run your own instance with a single Docker command. No cloud dependencies.
 
 ## Features
 
@@ -11,31 +16,48 @@ A Python application for monitoring Meshtastic mesh networks. Connects to nodes 
 - **Metrics dashboards** - Charts for battery, channel utilization, and more
 - **CLI query interface** - Terminal commands to search and filter collected data
 - **Export capabilities** - Export data to JSON or CSV formats
+- **Multi-arch Docker images** - Ready-to-run on x86_64, Raspberry Pi, and Apple Silicon
+- **Auto-updates** - Deploy with Watchtower for automatic updates
 
-## Installation
+## Quick Start (Docker)
+
+The fastest way to get started - works on any system with Docker:
+
+```bash
+docker run -d \
+  --name mesh-monitor \
+  --restart unless-stopped \
+  -p 8080:8080 \
+  -v mesh-data:/data \
+  -e MESHTASTIC_HOST=192.168.1.100 \
+  ghcr.io/niemesrw/meshtastic-monitor:latest
+```
+
+Open `http://localhost:8080` to access the web UI.
+
+## Quick Start (Python)
 
 ```bash
 # Clone the repository
-git clone <repo-url>
+git clone https://github.com/niemesrw/meshtastic-monitor.git
 cd meshtastic-monitor
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Install the package
+# Install with pip (or use: uv pip install -e .)
 pip install -e .
+
+# Start monitoring with web UI
+mesh-monitor start --host 192.168.1.100 --web
 ```
 
 ## Requirements
 
-- Python 3.9+
+- **Docker** (recommended) - Works on any platform
+- **Or** Python 3.9+ for native installation
 - Meshtastic node(s) accessible via TCP/IP (WiFi enabled)
 
-## Quick Start
+## CLI Usage
 
 ### Start Monitoring
-
-Connect to a Meshtastic node and begin collecting data:
 
 ```bash
 # Single gateway
@@ -43,6 +65,9 @@ mesh-monitor start --host 192.168.10.190
 
 # Multiple gateways
 mesh-monitor start --host 192.168.10.190 --host 192.168.10.191
+
+# With web UI
+mesh-monitor start --host 192.168.10.190 --web
 
 # Specify database file
 mesh-monitor start --host 192.168.10.190 --db mynetwork.db
@@ -182,24 +207,39 @@ mesh-monitor web --db mesh.db --port 8080
 
 ## Architecture
 
-See [docs/architecture.md](docs/architecture.md) for detailed architecture documentation.
+See [docs/architecture.md](docs/architecture.md) for detailed architecture and deployment options.
 
+### Standalone Deployment
 ```
-┌─────────────┐    ┌──────────────┐    ┌─────────────────┐
-│   CLI       │───▶│  Collector   │───▶│    Database     │
-│  (click)    │    │              │    │    (SQLite)     │
-└─────────────┘    └──────────────┘    └─────────────────┘
-                          │                     ▲
-                          ▼                     │
-                   ┌──────────────┐    ┌────────┴────────┐
-                   │  Meshtastic  │    │    Web UI       │
-                   │    SDK       │    │  Flask/Leaflet  │
-                   └──────────────┘    └─────────────────┘
-                          │
-                          ▼
-                   ┌──────────────┐
-                   │ Mesh Network │
-                   └──────────────┘
+┌─────────────────────────────────────────┐
+│          Docker / Native Python         │
+│  ┌─────────────┐    ┌────────────────┐  │
+│  │  Collector  │───▶│   SQLite DB    │  │
+│  │  + Web UI   │    │                │  │
+│  └──────┬──────┘    └────────────────┘  │
+└─────────┼───────────────────────────────┘
+          │ TCP
+          ▼
+   ┌──────────────┐
+   │  Meshtastic  │
+   │    Node      │
+   └──────────────┘
+```
+
+### Distributed Deployment (Multiple Locations)
+```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│ Pi Collector │     │ Pi Collector │     │ Pi Collector │
+│ (Location A) │     │ (Location B) │     │ (Location C) │
+└──────┬───────┘     └──────┬───────┘     └──────┬───────┘
+       │                    │                    │
+       └────────────────────┼────────────────────┘
+                            │ Sync
+                            ▼
+                 ┌─────────────────────┐
+                 │   Central Server    │
+                 │  (Aggregated View)  │
+                 └─────────────────────┘
 ```
 
 ## Docker Deployment
